@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pbdl"
+version = "0.0.3"
+description = "Manage datasets for physics-based deep learning"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.9"
+
+dependencies = ["numpy >= 1.0.0", "h5py >= 3.11.0", "requests >= 2.32.3"]
+
+[project.optional-dependencies]
+tools = ["opencv-python >= 1.17.0"]
+torch = ["torch >= 2.0.0"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pbdl", "pbdl.tools", "pbdl.torch", "pbdl.torch.phi"]
+
+[tool.setuptools.package-data]
+"pbdl" = ["config.json"]
+
+[project.urls]
+Homepage = "https://github.com/tum-pbs/pbdl-dataset"
