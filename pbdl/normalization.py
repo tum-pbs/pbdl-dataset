@@ -84,9 +84,9 @@ class NormStrategy(ABC):
         const_stacked = []
 
         # sequential loading of sims, norm data will be combined in the end
-        for s, sim in enumerate(dset["sims/"]):
+        for s in dset["sims/"]:
 
-            sim = dset["sims/" + sim]
+            sim = dset["sims/" + s]
 
             axis = (0,) + tuple(range(2, 2 + self.meta["num_spatial_dim"]))
             fields_sca_std = np.add(
@@ -115,7 +115,7 @@ class NormStrategy(ABC):
                 # std over frame dim and spatial dims
                 fields_std_slim[f] += np.std(field_norm, axis=axis, keepdims=True)[0]
 
-            const_stacked.append(get_const_sim(dset, s))
+            const_stacked.append(get_const_sim(dset, int(s[3:])))
 
         fields_sca_mean = np.array(fields_sca_mean) / self.meta["num_sims"]
         fields_sca_std = np.array(fields_sca_std) / self.meta["num_sims"]
@@ -223,6 +223,7 @@ STR_TO_NORM_STRAT = {
     "zero-to-one": (MinMaxNorm, {"min_val": 0, "max_val": 1}),
     "minus-one-to-one": (MinMaxNorm, {"min_val": -1, "max_val": 1}),
 }
+
 
 def get_norm_strat_from_str(str):
     if str not in STR_TO_NORM_STRAT.keys():

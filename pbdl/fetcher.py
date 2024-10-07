@@ -62,7 +62,7 @@ def dl_parts_from_huggingface(
                     message=f"downloading sim {s}",
                 )
 
-            if "sims/sim" + str(i) not in f:
+            if "sims/sim" + str(s) not in f:
                 modified = True
 
                 url_sim = url_ds + "/sim" + str(s) + config["dataset_ext"]
