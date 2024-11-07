@@ -13,6 +13,7 @@ import pbdl.fetcher
 from pbdl.colors import colors
 from pbdl.logging import info, success, warn, fail, corrupt
 from pbdl.utilities import get_sel_const_sim, get_meta_data, scan_local_dset_dir
+
 config_path = pkg_resources.resource_filename(__name__, "config.json")
 
 # load configuration
@@ -73,7 +74,13 @@ class Dataset:
             self.__load_dataset(dset_name, dset_file)
         elif dset_name in global_index.keys():
             # self.__download_dataset__(dset_name, sel_sims)
-            pbdl.fetcher.dl_parts(dset_name, config, sims=sel_sims)
+            if global_index[dset_name]["isSingleFile"]:
+                warn(
+                    f"`{dset_name}` is stored in single-file format. The download might take some time."
+                )
+                pbdl.fetcher.dl_single_file(dset_name, config)  # ignore sel_sims
+            else:
+                pbdl.fetcher.dl_parts(dset_name, config, sims=sel_sims)
 
             dset_file = os.path.join(
                 config["global_dataset_dir"], dset_name + config["dataset_ext"]

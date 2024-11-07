@@ -2,7 +2,11 @@ import numpy as np
 import torch
 import torch.utils.data
 
+from torch.utils.data import random_split
+from torch.utils.data import DataLoader as TorchDataLoader
+
 from pbdl.torch.dataset import Dataset
+
 
 def _collate_fn_(batch):
     """
@@ -36,50 +40,40 @@ def _collate_fn_(batch):
 
     return torch.tensor(data), torch.tensor(targets)
 
+
 class Dataloader(torch.utils.data.DataLoader):
     def __init__(self, *args, **kwargs):
 
-        # dispatch arguments
-        loader_kwargs = {
-            k: kwargs.pop(k)
-            for k in [
-                "batch_size",
-                "shuffle",
-                "sampler",
-                "batch_sampler",
-                "num_workers",
-                "collate_fn",
-                "pin_memory",
-                "drop_last",
-                "timeout",
-                "worker_init_fn",
-                "multiprocessing_context",
-                "generator",
-                "prefetch_factor",
-                "persistent_workers",
-                "pin_memory_device",
-            ]
-            if k in kwargs
-        }
-        dset_kwargs = {
-            k: kwargs.pop(k)
-            for k in [
-                "intermediate_time_steps",
-                "normalize",
-                "sel_sims",
-                "trim_start",
-                "trim_end",
-                "step_size",
-                "disable_progress",
-            ]
-            if k in kwargs
-        }
-        
+        torch_loader_args = TorchDataLoader.__init__.__code__.co_varnames[
+            2:
+        ]  # omit `self` and `dataset`
+
+        # extract torch loader args
+        loader_kwargs = {k: kwargs.pop(k) for k in torch_loader_args if k in kwargs}
+
         dataset = Dataset(
-            *args[:2], **dset_kwargs, **kwargs
+            *args, **kwargs
         )  # remaining kwargs are expected to be config parameters
 
         if "collate_fn" not in loader_kwargs:
             loader_kwargs["collate_fn"] = _collate_fn_
 
         super().__init__(dataset, **loader_kwargs)
+
+    def new_split(split: list[int], *args, **kwargs):
+
+        torch_loader_args = TorchDataLoader.__init__.__code__.co_varnames[
+            2:
+        ]  # omit `self` and `dataset`
+
+        # extract torch loader args
+        loader_kwargs = {k: kwargs.pop(k) for k in torch_loader_args if k in kwargs}
+
+        dataset = Dataset(*args, **kwargs)
+        splitted = random_split(dataset, split)
+
+        if "collate_fn" not in loader_kwargs:
+            loader_kwargs["collate_fn"] = _collate_fn_
+
+        loader = [TorchDataLoader(d, **loader_kwargs) for d in splitted]
+        return tuple(loader)

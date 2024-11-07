@@ -13,7 +13,6 @@ from pbdl.logging import info, success, warn, fail
 
 def dl_parts(dset: str, config, sims: list[int] = None):
     os.makedirs(config["global_dataset_dir"], exist_ok=True)
-
     dest = os.path.join(config["global_dataset_dir"], dset + config["dataset_ext"])
 
     # TODO dispatching
@@ -27,9 +26,39 @@ def dl_parts(dset: str, config, sims: list[int] = None):
             norm.clear_cache(dset)
 
 
+def dl_single_file(dset: str, config):
+    os.makedirs(config["global_dataset_dir"], exist_ok=True)
+    dest = os.path.join(config["global_dataset_dir"], dset + config["dataset_ext"])
+
+    if os.path.exists(dest):
+        # dataset already downloaded
+        return
+
+    dl_single_file_from_huggingface(
+        dset, dest, config, prog_hook=print_download_progress
+    )
+
+
 def fetch_index(config):
     # TODO dispatching
     return fetch_index_from_huggingface(config)
+
+
+def dl_single_file_from_huggingface(dset: str, dest: str, config, prog_hook=None):
+    repo_id = config["hf_repo_id"]
+    url_ds = f"https://huggingface.co/datasets/{repo_id}/resolve/main/{dset}{config['dataset_ext']}"
+
+    with urllib.request.urlopen(url_ds) as response:
+        total_size = int(response.info().get("Content-Length").strip())
+        block_size = 1024
+        with open(dest, "wb") as out_file:
+            for count, data in enumerate(iter(lambda: response.read(block_size), b"")):
+                out_file.write(data)
+                if prog_hook:
+                    prog_hook(count, block_size, total_size)
+
+    if prog_hook:
+        prog_hook(1, 1, 1, message="download completed")
 
 
 def dl_parts_from_huggingface(
@@ -90,7 +119,7 @@ def dl_parts_from_huggingface(
                 f["sims/"].attrs[key] = value
 
     if prog_hook:
-        prog_hook(len(sims), 1, len(sims), message="download completed")
+        prog_hook(1, 1, 1, message="download completed")
 
     return modified
 
@@ -103,13 +132,30 @@ def fetch_index_from_huggingface(config):
     try:
         files = get_hf_repo_file_list(repo_id)
         first_level_dirs = {file.split("/")[0] for file in files if "/" in file}
+        first_level_files = {
+            file[: -len(config["dataset_ext"])]
+            for file in files
+            if not "/" in file and file.endswith(config["dataset_ext"])
+        }
 
         meta_all_combined = {}
-        for ds in first_level_dirs:
-            url_meta_all = url_repo + ds + "/meta_all.json"
+        for d in first_level_dirs:
+            url_meta_all = url_repo + d + "/meta_all.json"
             meta_all = json.load(urllib.request.urlopen(url_meta_all))
+            meta_all["isSingleFile"] = False
+            meta_all_combined[d] = meta_all
 
-            meta_all_combined[ds] = meta_all
+        for r in first_level_files:
+            url_meta_all = url_repo + r + ".json"
+
+            # meta data file for single-file datasets may not exist
+            try:
+                meta_all = json.load(urllib.request.urlopen(url_meta_all))
+            except urllib.error.URLError as e:
+                meta_all = dict()
+
+            meta_all["isSingleFile"] = True
+            meta_all_combined[r] = meta_all
 
         # cache index for offline access
         with open(index_path, "w") as f:
@@ -174,6 +220,6 @@ def print_download_progress(count, block_size, total_size, message=None):
     )
     sys.stdout.flush()
 
-    if progress == total_size:
+    if progress >= total_size:
         sys.stdout.write("\n")
         sys.stdout.flush()

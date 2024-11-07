@@ -44,3 +44,15 @@ class TestLoader(unittest.TestCase):
             self.assertEqual(
                 targets.shape, (1, 999, 4, 128, 64)
             )  # all remaining sim frames
+
+    def test_split(self):
+        loader_train, loader_val, loader_test = pbdl_torch.Dataloader.new_split(
+            [2000, 500, 3 * 999 - 2000 - 500],
+            "random",
+            time_steps=1,
+            batch_size=10,
+            local_datasets_dir="./tests/datasets/",
+        )
+        self.assertEqual(len(loader_train), 2000 // 10)
+        self.assertEqual(len(loader_val), 500 // 10)
+        self.assertEqual(len(loader_test), (3 * 999 - 2000 - 500 + 9) // 10)
