@@ -263,8 +263,8 @@ class Dataset:
         for s in range(num_sel_sims):
             yield range(s * self.samples_per_sim, (s + 1) * self.samples_per_sim)
 
-    def num_spatial_dims(self):
-        return self.num_spatial_dim
+    # def num_spatial_dims(self):
+    #     return self.num_spatial_dim
 
 
 _load_index()

@@ -57,6 +57,8 @@ def dl_single_file_from_huggingface(dset: str, dest: str, config, prog_hook=None
 
     if prog_hook:
         prog_hook(1, 1, 1, message="download completed")
+    else:
+        info("Download completed.")
 
 
 def dl_parts_from_huggingface(
@@ -118,6 +120,8 @@ def dl_parts_from_huggingface(
 
     if prog_hook:
         prog_hook(1, 1, 1, message="download completed")
+    else:
+        info("Download completed.")
 
     return modified
 
