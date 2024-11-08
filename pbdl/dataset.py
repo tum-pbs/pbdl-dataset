@@ -78,9 +78,16 @@ class Dataset:
                 warn(
                     f"`{dset_name}` is stored in single-file format. The download might take some time."
                 )
-                pbdl.fetcher.dl_single_file(dset_name, config)  # ignore sel_sims
+                pbdl.fetcher.dl_single_file(
+                    dset_name, config, disable_progress=self.disable_progress
+                )  # ignore sel_sims
             else:
-                pbdl.fetcher.dl_parts(dset_name, config, sims=sel_sims)
+                pbdl.fetcher.dl_parts(
+                    dset_name,
+                    config,
+                    sims=sel_sims,
+                    disable_progress=self.disable_progress,
+                )
 
             dset_file = os.path.join(
                 config["global_dataset_dir"], dset_name + config["dataset_ext"]

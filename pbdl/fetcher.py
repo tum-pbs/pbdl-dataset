@@ -11,14 +11,13 @@ from pbdl.colors import colors
 from pbdl.logging import info, success, warn, fail
 
 
-def dl_parts(dset: str, config, sims: list[int] = None):
+def dl_parts(dset: str, config, sims: list[int] = None, disable_progress=False):
     os.makedirs(config["global_dataset_dir"], exist_ok=True)
     dest = os.path.join(config["global_dataset_dir"], dset + config["dataset_ext"])
 
     # TODO dispatching
-    modified = dl_parts_from_huggingface(
-        dset, dest, config, sims, prog_hook=print_download_progress
-    )
+    prog_hook = None if disable_progress else print_download_progress
+    modified = dl_parts_from_huggingface(dset, dest, config, sims, prog_hook=prog_hook)
 
     # normalization data will not incorporate all sims after download
     if modified:
@@ -26,7 +25,7 @@ def dl_parts(dset: str, config, sims: list[int] = None):
             norm.clear_cache(dset)
 
 
-def dl_single_file(dset: str, config):
+def dl_single_file(dset: str, config, disable_progress=False):
     os.makedirs(config["global_dataset_dir"], exist_ok=True)
     dest = os.path.join(config["global_dataset_dir"], dset + config["dataset_ext"])
 
@@ -34,9 +33,8 @@ def dl_single_file(dset: str, config):
         # dataset already downloaded
         return
 
-    dl_single_file_from_huggingface(
-        dset, dest, config, prog_hook=print_download_progress
-    )
+    prog_hook = None if disable_progress else print_download_progress
+    dl_single_file_from_huggingface(dset, dest, config, prog_hook=prog_hook)
 
 
 def fetch_index(config):
