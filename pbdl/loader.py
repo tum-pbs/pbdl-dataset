@@ -81,8 +81,8 @@ class Dataloader:
     def __len__(self):
         return (len(self.dataset) + self.batch_size - 1) // self.batch_size
 
-    def get_frames_raw(self, sim, idx):
-        return self.dataset.get_frames_raw(sim, idx)
+    def get_sim_raw(self, sim):
+        return self.dataset.get_sim_raw(sim)
 
 
     # parallel processing

@@ -245,10 +245,8 @@ class Dataset:
 
         self.dset = h5py.File(self.dset_file, mode)
 
-    def get_frames_raw(self, sim, idx):
-        slc = slice(idx, idx + 1) if isinstance(idx, int) else idx
-        sim = self.dset["sims/sim" + str(sim)]
-        return sim[slc]
+    def get_sim_raw(self, sim):
+        return self.dset["sims/sim" + str(sim)]
 
     def get_h5_raw(self):
         return self.dset

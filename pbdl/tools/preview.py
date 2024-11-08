@@ -26,15 +26,17 @@ def create_preview_video(
     # TODO what if fps * sec too large?
     loader = Dataloader(
         dataset_name,
-        time_steps=1,
-        step_size=1,
         sel_sims=[0],
-        # intermediate_time_steps=True,
-        normalize=False,
         disable_progress=True,
     )
 
-    frames = loader.get_frames_raw(0, slice(0, fps * sec))
+    sim = loader.get_sim_raw(0)
+
+    # skip animation if not enough frames
+    if len(sim) < fps * sec:
+        return
+
+    frames = sim[: fps * sec]
 
     # add a second spatial dimension
     if loader.dataset.num_spatial_dim == 1:
