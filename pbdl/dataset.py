@@ -48,7 +48,8 @@ class Dataset:
         time_steps=None,  # by default num_frames - 1
         all_time_steps=False,  # sets time_steps=max time steps, intermediate_time_steps=True
         intermediate_time_steps=None,  # by default False
-        normalize=None,  # by default no normalization
+        normalize_data=None,  # by default no normalization
+        normalize_const=None,  # by default no normalization
         sel_sims=None,  # if None, all simulations are loaded
         sel_const=None,  # if None, all constants are returned
         trim_start=None,  # by default 0
@@ -62,7 +63,8 @@ class Dataset:
         self.sel_const = sel_const
         self.disable_progress = disable_progress
 
-        self.normalize = norm.get_norm_strat_from_str(normalize) if normalize else None
+        self.norm_strat_data = norm.get_norm_strat_from_str(normalize_data) if normalize_data else None
+        self.norm_strat_const = norm.get_norm_strat_from_str(normalize_const) if normalize_const else None
 
         config.update(kwargs)
         _load_index()
@@ -137,9 +139,14 @@ class Dataset:
             + f"and {self.samples_per_sim} samples each."
         )
 
-        if self.normalize:
+        if self.norm_strat_data:
             self._change_file_mode("r+")
-            self.normalize.prepare(self.dset, self.sel_const)
+            self.norm_strat_data.prepare(self.dset, self.sel_const)
+            self._change_file_mode("r")
+        
+        if self.norm_strat_const:
+            self._change_file_mode("r+")
+            self.norm_strat_const.prepare(self.dset, self.sel_const)
             self._change_file_mode("r")
 
     def __load_dataset(self, dset_name, dset_file):
@@ -227,18 +234,19 @@ class Dataset:
         const_nnorm = const
 
         # normalize
-        if self.normalize:
-            input = self.normalize.normalize_data(input)
+        if self.norm_strat_data:
+            input = self.norm_strat_data.normalize(input)
 
             if self.intermediate_time_steps:
                 target = np.array(
-                    [self.normalize.normalize_data(frame) for frame in target]
+                    [self.norm_strat_data.normalize(frame) for frame in target]
                 )
             else:
-                target = self.normalize.normalize_data(target)
+                target = self.norm_strat_data.normalize(target)
 
-            const = self.normalize.normalize_const(const)
-
+        if self.norm_strat_const:
+            const = self.norm_strat_const.normalize(const, const=True)
+            
         return (
             input,
             target,

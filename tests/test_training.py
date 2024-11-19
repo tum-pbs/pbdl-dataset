@@ -21,7 +21,7 @@ class TestTraining(unittest.TestCase):
             time_steps=10,
             sel_sims=[0, 1],
             step_size=3,
-            normalize="std",
+            normalize_data="std",
             batch_size=3,
             shuffle=True,
         )

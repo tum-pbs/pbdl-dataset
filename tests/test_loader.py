@@ -24,7 +24,6 @@ class TestLoader(unittest.TestCase):
             sel_sims=[0, 1, 2, 3, 4, 5],
             intermediate_time_steps=True,
             shuffle=True,
-            normalize=False,
         )
 
         for input_cpu, targets_cpu in loader:

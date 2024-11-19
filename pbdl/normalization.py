@@ -15,30 +15,34 @@ NORM_DATA_ARR = [
     "norm_fields_sca_max",
     "norm_const_mean",
     "norm_const_std",
+    "norm_const_min",
+    "norm_const_max",
 ]
 
 
 class NormStrategy(ABC):
 
     @abstractmethod
-    def normalize_data(self, data):
+    def normalize(self, data, const=False):
         pass
 
     @abstractmethod
-    def normalize_data_rev(self, data):
+    def normalize_rev(self, data, const=False):
         pass
 
-    def normalize_const(self, const):
-        """Constant normalization always uses mean and standard deviation across all variants."""
-        return (
-            const - self.const_mean
-        ) / self.const_std  # TODO handling zero const_std?
+    # def normalize_const(self, const):
+    #     """Constant normalization always uses mean and standard deviation across all variants."""
+    #     return (
+    #         const - self.const_mean
+    #     ) / self.const_std  # TODO handling zero const_std?
 
     def prepare(self, dset, sel_const):
+        """Makes normalization data available as attributes."""
         self.sel_const = sel_const
         self.meta = get_meta_data(dset)
 
         if not all(key in dset for key in NORM_DATA_ARR):
+            clear_cache(dset)
             self.__cache_norm_data__(dset)
 
         self.__load_and_validate_norm_data__(dset)
@@ -141,6 +145,8 @@ class NormStrategy(ABC):
         dset["norm_fields_sca_max"] = fields_sca_max
         dset["norm_const_mean"] = np.mean(const_stacked, axis=0, keepdims=False)
         dset["norm_const_std"] = np.std(const_stacked, axis=0, keepdims=False)
+        dset["norm_const_min"] = np.min(const_stacked, axis=0, keepdims=False)
+        dset["norm_const_max"] = np.max(const_stacked, axis=0, keepdims=False)
 
     def __load_and_validate_norm_data__(self, dset):
         # load normalization data
@@ -152,6 +158,8 @@ class NormStrategy(ABC):
         self.fields_sca_max = dset["norm_fields_sca_max"][()]
         self.const_mean = dset["norm_const_mean"][()]
         self.const_std = dset["norm_const_std"][()]
+        self.const_min = dset["norm_const_min"][()]
+        self.const_max = dset["norm_const_max"][()]
 
         # do basic checks on shape
         if self.fields_std.shape[0] != self.meta["sim_shape"][1]:
@@ -169,14 +177,20 @@ class NormStrategy(ABC):
 
 
 class StdNorm(NormStrategy):
-    """Normalizes fields using only the standard deviation."""
+    """Normalizes fields/constants using only the standard deviation."""
 
-    def normalize_data(self, data):
-        return data / self.fields_std
+    def normalize(self, data, const=False):
+        if const:
+            print(self.const_std.shape)
+            print(self.const_std)
+            print(len(data))
+            print(data[0].shape)
 
-    def normalize_data_rev(self, data):
-        return data * self.fields_std
+        return data / (self.const_std if const else self.fields_std)
 
+    def normalize_rev(self, data, const=False):
+        return data * (self.const_std if const else self.fields_std)
+    
         # if (const_std < 10e-10).any():
         #     const_norm = np.zeros_like(const)
         # else:
@@ -184,31 +198,31 @@ class StdNorm(NormStrategy):
 
 
 class MeanStdNorm(NormStrategy):
-    """Normalizes fields using both mean and standard deviation. Ignores vector fields and treats them like scalar fields, thus does not use the field scheme."""
+    """Normalizes fields/constants using both mean and standard deviation. Ignores vector fields and treats them like scalar fields, thus does not use the field scheme."""
 
-    def normalize_data(self, data):
-        return (data - self.fields_sca_mean) / self.fields_sca_std
+    def normalize(self, data, const=False):
+        return (data - (self.const_mean if const else self.fields_sca_mean)) / (self.const_std if const else self.fields_sca_std)
 
-    def normalize_data_rev(self, data):
-        return data * self.fields_sca_std + self.fields_sca_mean
+    def normalize_rev(self, data, const=False):
+        return data * (self.const_std if const else self.fields_sca_std) + (self.const_mean if const else self.fields_sca_mean)
 
 
 class MinMaxNorm(NormStrategy):
-    """Scales fields to a min-max range."""
+    """Scales fields/constants to a min-max range."""
 
     def __init__(self, min_val=0, max_val=1):
         self.min_val = min_val
         self.max_val = max_val
 
-    def normalize_data(self, data):
-        return (data - self.fields_sca_min) / (
-            self.fields_sca_max - self.fields_sca_min
-        ) * (self.max_val - self.min_val) + self.min_val
+    def normalize(self, data, const=False):
+        min = (self.const_min if const else self.fields_sca_min)
+        max = (self.const_max if const else self.fields_sca_max)
+        return (data - min) / (max - min) * (self.max_val - self.min_val) + self.min_val
 
-    def normalize_data_rev(self, data):
-        return ((data - self.min_val) / (self.max_val - self.min_val)) * (
-            self.fields_sca_max - self.fields_sca_min
-        ) + self.fields_sca_min
+    def normalize_rev(self, data, const=False):
+        min = (self.const_min if const else self.fields_sca_min)
+        max = (self.const_max if const else self.fields_sca_max)
+        return ((data - self.min_val) / (self.max_val - self.min_val)) * (max - min) + min
 
 
 def clear_cache(dset):

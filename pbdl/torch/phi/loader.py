@@ -4,7 +4,7 @@ import phi.torch.flow as pf
 
 from pbdl.torch.phi.dataset import Dataset
 from pbdl.torch.phi.sampler import ConstantBatchSampler
-from pbdl.colors import colors
+from pbdl.logging import warn
 
 PHIFLOW_SPATIAL_DIM = ["x", "y", "z"]
 
@@ -84,10 +84,8 @@ class Dataloader(torch.utils.data.DataLoader):
 
         if ret_batch_const and not batch_by_const:
             ret_batch_const = False
-            print(
-                colors.WARNING
-                + f"Warning: Flag ret_batch_const cannot be enabled when batch_by_const is disabled. Ignoring flag."
-                + colors.ENDC
+            warn(
+                f"Warning: Flag ret_batch_const cannot be enabled when batch_by_const is disabled. Ignoring flag."
             )
 
         # dispatch arguments
@@ -151,8 +149,8 @@ class Dataloader(torch.utils.data.DataLoader):
         # if necessary, cut off constant layers
         data = data[:, 0 : self.dataset.num_sca_fields, ...]
 
-        if self.dataset.normalize:
-            data = self.dataset.normalize.normalize_data_rev(data)
+        if self.dataset.norm_strat_data:
+            data = self.dataset.norm_strat_data.normalize_rev(data)
 
         return pf.tensor(
             data,
@@ -167,8 +165,8 @@ class Dataloader(torch.utils.data.DataLoader):
 
         data = data.native(["b", "time", spatial_dim])
 
-        if self.dataset.normalize:
-            data = self.dataset.normalize.normalize_data(data)
+        if self.dataset.norm_strat_data:
+            data = self.dataset.norm_strat_data.normalize(data)
 
         return data
 

@@ -7,7 +7,8 @@ import json
 import pbdl.normalization as norm
 import pkg_resources
 import sys
-from pbdl.colors import colors
+
+import pbdl.logging as logging
 from pbdl.logging import info, success, warn, fail
 
 
@@ -44,7 +45,7 @@ def fetch_index(config):
 
 def dl_single_file_from_huggingface(dset: str, dest: str, config, prog_hook=None):
     repo_id = config["hf_repo_id"]
-    url_ds = f"https://huggingface.co/datasets/{repo_id}/resolve/main/{dset}{config['dataset_ext']}"
+    url_ds = f"https://huggingface.co/datasets/{repo_id}/resolve/main/{dset}/data{config['dataset_ext']}"
 
     with urllib.request.urlopen(url_ds) as response:
         total_size = int(response.info().get("Content-Length").strip())
@@ -58,7 +59,7 @@ def dl_single_file_from_huggingface(dset: str, dest: str, config, prog_hook=None
     if prog_hook:
         prog_hook(1, 1, 1, message="download completed")
     else:
-        info("Download completed.")
+        success("Download completed.")
 
 
 def dl_parts_from_huggingface(
@@ -121,7 +122,7 @@ def dl_parts_from_huggingface(
     if prog_hook:
         prog_hook(1, 1, 1, message="download completed")
     else:
-        info("Download completed.")
+        success("Download completed.")
 
     return modified
 
@@ -133,22 +134,27 @@ def fetch_index_from_huggingface(config):
 
     try:
         files = get_hf_repo_file_list(repo_id)
+
         first_level_dirs = {file.split("/")[0] for file in files if "/" in file}
-        first_level_files = {
-            file[: -len(config["dataset_ext"])]
-            for file in files
-            if not "/" in file and file.endswith(config["dataset_ext"])
+
+        first_level_dirs_data_file = {
+            d for d in first_level_dirs if f"{d}/data{config['dataset_ext']}" in files
         }
 
+        datasets_part = first_level_dirs - first_level_dirs_data_file
+        datasets_single = first_level_dirs_data_file
+        
+        # partitioned datasets
         meta_all_combined = {}
-        for d in first_level_dirs:
+        for d in datasets_part:
             url_meta_all = url_repo + d + "/meta_all.json"
             meta_all = json.load(urllib.request.urlopen(url_meta_all))
             meta_all["isSingleFile"] = False
             meta_all_combined[d] = meta_all
 
-        for r in first_level_files:
-            url_meta_all = url_repo + r + ".json"
+        # single-file datasets
+        for r in datasets_single:
+            url_meta_all = url_repo + r + "/meta_all.json"
 
             # meta data file for single-file datasets may not exist
             try:
@@ -198,9 +204,9 @@ def print_download_progress(count, block_size, total_size, message=None):
     bar_length = 50
     bar = (
         "━" * int(percent / 2)
-        + colors.DARKGREY
+        + logging.DARKGREY
         + "━" * (bar_length - int(percent / 2))
-        + colors.OKBLUE
+        + logging.SUCCESS_CYAN
     )
 
     def format_size(size):
@@ -214,11 +220,11 @@ def print_download_progress(count, block_size, total_size, message=None):
     total_str = format_size(total_size)
 
     sys.stdout.write(
-        colors.OKBLUE
+        logging.SUCCESS_CYAN
         + "\r\033[K"
         + (message if message else f"{downloaded_str} / {total_str}")
         + f"\t {bar} {percent}%"
-        + colors.ENDC
+        + logging.ENDC
     )
     sys.stdout.flush()
 

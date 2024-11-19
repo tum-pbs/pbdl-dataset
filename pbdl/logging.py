@@ -14,14 +14,11 @@ UNDERLINE = "\033[4m"
 def info(msg: str):
     print(BOLD + "Info:" + R_BOLD + " " + msg + ENDC)
 
-
 def success(msg: str):
     print(SUCCESS_CYAN + BOLD + "Success:" + R_BOLD + " " + msg + ENDC)
 
-
 def warn(msg: str):
     print(WARN_YELLOW + BOLD + "Warning:" + R_BOLD + " " + msg + ENDC)
-
 
 def fail(msg: str):
     print(FAIL_RED + BOLD + "Fail:" + R_BOLD + " " + msg + ENDC)
