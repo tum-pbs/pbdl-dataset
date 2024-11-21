@@ -36,53 +36,33 @@ class NormStrategy(ABC):
     #         const - self.const_mean
     #     ) / self.const_std  # TODO handling zero const_std?
 
-    def prepare(self, dset, sel_const):
-        """Makes normalization data available as attributes."""
-        self.sel_const = sel_const
-        self.meta = get_meta_data(dset)
+    def check_norm_data(dset):
+        """Checks whether the norm data is complete."""
+        return all(key in dset for key in NORM_DATA_ARR)
 
-        if not all(key in dset for key in NORM_DATA_ARR):
-            clear_cache(dset)
-            self.__cache_norm_data__(dset)
+    def calculate_norm_data(dset):
+        """Calculate and cache norm data."""
+        clear_cache(dset)
 
-        self.__load_and_validate_norm_data__(dset)
-
-        if sel_const:
-            indices = [
-                i
-                for i, const in enumerate(self.meta["const"])
-                if const in self.sel_const
-            ]
-            self.const_std = self.const_std[indices]
-            self.const_mea = self.const_mean[indices]
-
-    def __cache_norm_data__(self, dset):
-        info(
-            "No precomputed normalization data found (or not complete). Calculating data..."
-        )
-
-        num_sca_fields = self.meta["num_sca_fields"]
+        meta = get_meta_data(dset)
+        num_sca_fields = meta["num_sca_fields"]
 
         # calculate the starting indices for fields
         field_indices = [0]
-        for _, f in groupby(self.meta["fields_scheme"]):
+        for _, f in groupby(meta["fields_scheme"]):
             field_indices.append(field_indices[-1] + len(list(f)))  # TODO
 
         # slim means that for vector (non-scalar) fields the std must first be broadcasted to the original size
-        fields_std_slim = [0] * self.meta["num_fields"]
+        fields_std_slim = [0] * meta["num_fields"]
 
-        fields_sca_std = np.full(
-            (num_sca_fields,) + (1,) * self.meta["num_spatial_dim"], 0
-        )
-        fields_sca_mean = np.full(
-            (num_sca_fields,) + (1,) * self.meta["num_spatial_dim"], 0
-        )
+        fields_sca_std = np.full((num_sca_fields,) + (1,) * meta["num_spatial_dim"], 0)
+        fields_sca_mean = np.full((num_sca_fields,) + (1,) * meta["num_spatial_dim"], 0)
 
         fields_sca_min = np.full(
-            (num_sca_fields,) + (1,) * self.meta["num_spatial_dim"], float("inf")
+            (num_sca_fields,) + (1,) * meta["num_spatial_dim"], float("inf")
         )
         fields_sca_max = np.full(
-            (num_sca_fields,) + (1,) * self.meta["num_spatial_dim"], -float("inf")
+            (num_sca_fields,) + (1,) * meta["num_spatial_dim"], -float("inf")
         )
 
         const_stacked = []
@@ -92,7 +72,7 @@ class NormStrategy(ABC):
 
             sim = dset["sims/" + s]
 
-            axis = (0,) + tuple(range(2, 2 + self.meta["num_spatial_dim"]))
+            axis = (0,) + tuple(range(2, 2 + meta["num_spatial_dim"]))
             fields_sca_std = np.add(
                 fields_sca_std, np.std(sim, axis=axis, keepdims=True)[0]
             )
@@ -107,32 +87,32 @@ class NormStrategy(ABC):
                 fields_sca_max, np.max(sim, axis=axis, keepdims=True)[0]
             )
 
-            for f in range(self.meta["num_fields"]):
+            for f in range(meta["num_fields"]):
                 field = sim[:, field_indices[f] : field_indices[f + 1], ...]
 
                 # vector norm
                 field_norm = np.linalg.norm(field, axis=1, keepdims=True)
 
                 # frame dim + spatial dims
-                axis = (0,) + tuple(range(2, 2 + self.meta["num_spatial_dim"]))
+                axis = (0,) + tuple(range(2, 2 + meta["num_spatial_dim"]))
 
                 # std over frame dim and spatial dims
                 fields_std_slim[f] += np.std(field_norm, axis=axis, keepdims=True)[0]
 
             const_stacked.append(get_const_sim(dset, int(s[3:])))
 
-        fields_sca_mean = np.array(fields_sca_mean) / self.meta["num_sims"]
-        fields_sca_std = np.array(fields_sca_std) / self.meta["num_sims"]
+        fields_sca_mean = np.array(fields_sca_mean) / meta["num_sims"]
+        fields_sca_std = np.array(fields_sca_std) / meta["num_sims"]
 
         # TODO overall std is calculated by averaging the std of all sims, efficient but mathematically not correct
         fields_std = []
-        for f in range(self.meta["num_fields"]):
-            field_std_avg = fields_std_slim[f] / self.meta["num_sims"]
+        for f in range(meta["num_fields"]):
+            field_std_avg = fields_std_slim[f] / meta["num_sims"]
             field_len = field_indices[f + 1] - field_indices[f]
             fields_std.append(
                 np.broadcast_to(  # broadcast to original field dims
                     field_std_avg,
-                    (field_len,) + (1,) * self.meta["num_spatial_dim"],
+                    (field_len,) + (1,) * meta["num_spatial_dim"],
                 )
             )
         fields_std = np.concatenate(fields_std, axis=0)
@@ -148,7 +128,12 @@ class NormStrategy(ABC):
         dset["norm_const_min"] = np.min(const_stacked, axis=0, keepdims=False)
         dset["norm_const_max"] = np.max(const_stacked, axis=0, keepdims=False)
 
-    def __load_and_validate_norm_data__(self, dset):
+    def load_norm_data(self, dset, sel_const):
+        """Makes normalization data available as attributes."""
+
+        self.sel_const = sel_const
+        self.meta = get_meta_data(dset)
+
         # load normalization data
         # [()] reads the entire array TODO
         self.fields_sca_mean = dset["norm_fields_sca_mean"][()]
@@ -175,22 +160,25 @@ class NormStrategy(ABC):
         if self.const_std.shape[0] != self.meta["num_const"]:
             raise ValueError("Std data of constants does not match shape of constants.")
 
+        # filter norm data for selected constants
+        if sel_const:
+            indices = [
+                i
+                for i, const in enumerate(self.meta["const"])
+                if const in self.sel_const
+            ]
+            self.const_std = self.const_std[indices]
+            self.const_mea = self.const_mean[indices]
 
 class StdNorm(NormStrategy):
     """Normalizes fields/constants using only the standard deviation."""
 
     def normalize(self, data, const=False):
-        if const:
-            print(self.const_std.shape)
-            print(self.const_std)
-            print(len(data))
-            print(data[0].shape)
-
         return data / (self.const_std if const else self.fields_std)
 
     def normalize_rev(self, data, const=False):
         return data * (self.const_std if const else self.fields_std)
-    
+
         # if (const_std < 10e-10).any():
         #     const_norm = np.zeros_like(const)
         # else:
@@ -201,10 +189,14 @@ class MeanStdNorm(NormStrategy):
     """Normalizes fields/constants using both mean and standard deviation. Ignores vector fields and treats them like scalar fields, thus does not use the field scheme."""
 
     def normalize(self, data, const=False):
-        return (data - (self.const_mean if const else self.fields_sca_mean)) / (self.const_std if const else self.fields_sca_std)
+        return (data - (self.const_mean if const else self.fields_sca_mean)) / (
+            self.const_std if const else self.fields_sca_std
+        )
 
     def normalize_rev(self, data, const=False):
-        return data * (self.const_std if const else self.fields_sca_std) + (self.const_mean if const else self.fields_sca_mean)
+        return data * (self.const_std if const else self.fields_sca_std) + (
+            self.const_mean if const else self.fields_sca_mean
+        )
 
 
 class MinMaxNorm(NormStrategy):
@@ -215,14 +207,16 @@ class MinMaxNorm(NormStrategy):
         self.max_val = max_val
 
     def normalize(self, data, const=False):
-        min = (self.const_min if const else self.fields_sca_min)
-        max = (self.const_max if const else self.fields_sca_max)
+        min = self.const_min if const else self.fields_sca_min
+        max = self.const_max if const else self.fields_sca_max
         return (data - min) / (max - min) * (self.max_val - self.min_val) + self.min_val
 
     def normalize_rev(self, data, const=False):
-        min = (self.const_min if const else self.fields_sca_min)
-        max = (self.const_max if const else self.fields_sca_max)
-        return ((data - self.min_val) / (self.max_val - self.min_val)) * (max - min) + min
+        min = self.const_min if const else self.fields_sca_min
+        max = self.const_max if const else self.fields_sca_max
+        return ((data - self.min_val) / (self.max_val - self.min_val)) * (
+            max - min
+        ) + min
 
 
 def clear_cache(dset):

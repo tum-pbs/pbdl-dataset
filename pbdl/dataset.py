@@ -56,6 +56,7 @@ class Dataset:
         trim_end=None,  # by default 0
         step_size=None,  # by default 1
         disable_progress=False,
+        clear_norm_data=False,
         **kwargs,
     ):
 
@@ -63,8 +64,12 @@ class Dataset:
         self.sel_const = sel_const
         self.disable_progress = disable_progress
 
-        self.norm_strat_data = norm.get_norm_strat_from_str(normalize_data) if normalize_data else None
-        self.norm_strat_const = norm.get_norm_strat_from_str(normalize_const) if normalize_const else None
+        self.norm_strat_data = (
+            norm.get_norm_strat_from_str(normalize_data) if normalize_data else None
+        )
+        self.norm_strat_const = (
+            norm.get_norm_strat_from_str(normalize_const) if normalize_const else None
+        )
 
         config.update(kwargs)
         _load_index()
@@ -139,15 +144,27 @@ class Dataset:
             + f"and {self.samples_per_sim} samples each."
         )
 
+        if clear_norm_data:
+            self._change_file_mode("r+")
+            norm.clear_cache(self.dset)
+            self._change_file_mode("r")
+
+        if (
+            self.norm_strat_data or self.norm_strat_data
+        ) and not norm.NormStrategy.check_norm_data(self.dset):
+            info(
+                "No precomputed normalization data found (or not complete). Calculating data..."
+            )
+
+            self._change_file_mode("r+")
+            norm.NormStrategy.calculate_norm_data(self.dset)
+            self._change_file_mode("r")
+
         if self.norm_strat_data:
-            self._change_file_mode("r+")
-            self.norm_strat_data.prepare(self.dset, self.sel_const)
-            self._change_file_mode("r")
-        
+            self.norm_strat_data.load_norm_data(self.dset, self.sel_const)
+
         if self.norm_strat_const:
-            self._change_file_mode("r+")
-            self.norm_strat_const.prepare(self.dset, self.sel_const)
-            self._change_file_mode("r")
+            self.norm_strat_const.load_norm_data(self.dset, self.sel_const)
 
     def __load_dataset(self, dset_name, dset_file):
         """Load hdf5 dataset, setting attributes of the dataset instance, doing basic validation checks."""
@@ -246,7 +263,7 @@ class Dataset:
 
         if self.norm_strat_const:
             const = self.norm_strat_const.normalize(const, const=True)
-            
+
         return (
             input,
             target,
