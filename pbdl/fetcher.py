@@ -68,18 +68,24 @@ def dl_parts_from_huggingface(
     """Adds partitions to hdf5 file. If parts is not specified, alls partitions are added."""
 
     repo_id = config["hf_repo_id"]
+    url_repo = f"https://huggingface.co/datasets/{repo_id}/resolve/main/"
+    url_meta_all = url_repo + f"{dataset}/meta_all.json"
 
-    # look up partitions, if none selected
-    if not sims:
-        files = get_hf_repo_file_list(repo_id)
+    # create sim-to-file mapping
+    files = get_hf_repo_file_list(repo_id)
+    sim_to_file = {}
+    for file in files:
+        if file.startswith(dataset + "/sim"):
+            parts = file.split("/sim")[-1].split(".")[0].split("-")
+            sim_from = int(parts[0])
+            sim_to = int(
+                parts[-1]
+            )  # is the same as sim_from if files contains only one sim
+            for sim in range(sim_from, sim_to + 1):
+                sim_to_file[sim] = file
 
-        # filter files for dataset sim files
-        sim_files = [f for f in files if f.startswith(dataset + "/sim")]
-
-        # expect numbering to be consecutive
-        sims = range(len(sim_files))
-
-    url_ds = f"https://huggingface.co/datasets/{repo_id}/resolve/main/{dataset}"
+    # expect numbering to be consecutive
+    sims = range(len(sim_to_file))
 
     modified = False
     with h5py.File(dest, "a") as f:
@@ -95,26 +101,19 @@ def dl_parts_from_huggingface(
             if "sims/sim" + str(s) not in f:
                 modified = True
 
-                url_sim = url_ds + "/sim" + str(s) + config["dataset_ext"]
+                url_sim = url_repo + sim_to_file[s]
 
                 with urllib.request.urlopen(url_sim) as response:
                     with h5py.File(io.BytesIO(response.read()), "r") as dset_sim:
-
-                        if len(dset_sim) != 1:
-                            raise ValueError(
-                                f"A partition file must contain exactly one simulation."
+                        for sk in dset_sim["sims"]:
+                            sim = f.create_dataset(
+                                f"sims/{sk}", data=dset_sim[f"sims/{sk}"]
                             )
-
-                        sim = f.create_dataset(
-                            "sims/sim" + str(s), data=dset_sim["sims/sim0"]
-                        )
-
-                        for key, value in dset_sim["sims/sim0"].attrs.items():
-                            sim.attrs[key] = value
+                            for key, value in dset_sim[f"sims/{sk}"].attrs.items():
+                                sim.attrs[key] = value
 
         # update meta all
-        meta_all_url = url_ds + "/meta_all.json"
-        with urllib.request.urlopen(meta_all_url) as response:
+        with urllib.request.urlopen(url_meta_all) as response:
             meta_all = json.loads(response.read().decode())
             for key, value in meta_all.items():
                 f["sims/"].attrs[key] = value
@@ -143,7 +142,7 @@ def fetch_index_from_huggingface(config):
 
         datasets_part = first_level_dirs - first_level_dirs_data_file
         datasets_single = first_level_dirs_data_file
-        
+
         # partitioned datasets
         meta_all_combined = {}
         for d in datasets_part:
@@ -169,8 +168,12 @@ def fetch_index_from_huggingface(config):
         with open(index_path, "w") as f:
             json.dump(meta_all_combined, f)
 
-    except urllib.error.URLError:
-        warn("Failed to fetch global dataset index. Check your internet connection.")
+    except (
+        requests.exceptions.RequestException,
+        json.JSONDecodeError,
+        urllib.error.URLError,
+    ):
+        warn("Could not fetch global dataset index.")
 
     try:
         with open(index_path) as index_file:
@@ -185,6 +188,7 @@ def fetch_index_from_huggingface(config):
 def get_hf_repo_file_list(repo_id: str):
     url_api = f"https://huggingface.co/api/datasets/{repo_id}"
     response = requests.get(url_api)
+    response.raise_for_status()
     repo_info = response.json()
     siblings = repo_info.get("siblings", [])
     return [s["rfilename"] for s in siblings]
