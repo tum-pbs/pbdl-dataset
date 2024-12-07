@@ -60,6 +60,9 @@ class Dataloader(torch.utils.data.DataLoader):
 
         super().__init__(dataset, **loader_kwargs)
 
+    def info(self):
+        return self.dataset.info()
+
     def new_split(split: list[int], *args, **kwargs):
 
         torch_loader_args = TorchDataLoader.__init__.__code__.co_varnames[

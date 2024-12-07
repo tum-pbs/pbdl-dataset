@@ -32,12 +32,14 @@ def get_meta_data(dset):
         "Fields Scheme": "fields_scheme",
         "Fields": "fields",
         "Constants": "const",
+        "Field Desc": "field_desc",
+        "Constant Desc": "const_desc",
         "Dt": "dt",
     }
 
     meta_attrs = dset["sims"].attrs
 
-    meta = {field_mapping[field]: meta_attrs[field] for field in field_mapping.keys()}
+    meta = {field_mapping[field]: meta_attrs[field] for field in field_mapping.keys() if field in meta_attrs}
 
     # retrieve remaining metadata from the first simulation
     first_sim = dset["sims"][next(iter(dset["sims"]))]

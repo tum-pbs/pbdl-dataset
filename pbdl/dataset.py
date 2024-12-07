@@ -10,7 +10,9 @@ from itertools import groupby
 
 import pbdl.normalization as norm
 import pbdl.fetcher
-from pbdl.colors import colors
+import pbdl.logging as logging
+
+# from pbdl.colors import colors
 from pbdl.logging import info, success, warn, fail, corrupt
 from pbdl.utilities import get_sel_const_sim, get_meta_data, scan_local_dset_dir
 
@@ -288,8 +290,28 @@ class Dataset:
         for s in range(num_sel_sims):
             yield range(s * self.samples_per_sim, (s + 1) * self.samples_per_sim)
 
-    # def num_spatial_dims(self):
-    #     return self.num_spatial_dim
+    def info(self):
+
+        info_str = f"{logging.BOLD}PDE:{logging.R_BOLD} {self.pde}\n"
+        info_str += (
+            f"{logging.BOLD}Fields Scheme:{logging.R_BOLD} {self.fields_scheme}\n"
+        )
+        info_str += f"{logging.BOLD}Dt:{logging.R_BOLD} {self.dt}\n"
+        info_str += f"\n{logging.BOLD}Fields:{logging.R_BOLD}\n"
+        
+        for i, field in enumerate(self.fields):
+            if hasattr(self, "field_desc"):
+                info_str += f"   {field}:\t{self.field_desc[i]}\n"
+            else:
+                info_str += f"   {field}:\n"
+        
+        info_str += f"\n{logging.BOLD}Constants:{logging.R_BOLD}\n"
+        for i, field in enumerate(self.fields):
+            if hasattr(self, "const_desc"):
+                info_str += f"   {field}:\t{self.field_desc[i]}\n"
+            else:
+                info_str += f"   {field}\n"
+        return info_str
 
 
 _load_index()

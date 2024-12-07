@@ -83,6 +83,9 @@ class Dataloader:
 
     def get_sim_raw(self, sim):
         return self.dataset.get_sim_raw(sim)
+    
+    def info(self):
+        return self.dataset.info()
 
 
     # parallel processing

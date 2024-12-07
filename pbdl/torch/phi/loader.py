@@ -142,6 +142,9 @@ class Dataloader(torch.utils.data.DataLoader):
 
         super().__init__(self.dataset, **loader_kwargs)
 
+    def info(self):
+        return self.dataset.info()
+
     def to_phiflow(self, data):
         """Convert network input to solver input. Constant layers are ignored."""
         spatial_dim = ",".join(PHIFLOW_SPATIAL_DIM[0 : self.dataset.num_spatial_dim])
