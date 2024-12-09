@@ -49,11 +49,12 @@ def dl_single_file_from_huggingface(dset: str, dest: str, config, prog_hook=None
 
     with urllib.request.urlopen(url_ds) as response:
         total_size = int(response.info().get("Content-Length").strip())
-        block_size = 1024
+        block_size = 16384 # 16 KB
+        refresh_rate = 10 # update progress every 10 blocks
         with open(dest, "wb") as out_file:
             for count, data in enumerate(iter(lambda: response.read(block_size), b"")):
                 out_file.write(data)
-                if prog_hook:
+                if prog_hook and count % refresh_rate == 0:
                     prog_hook(count, block_size, total_size)
 
     if prog_hook:
