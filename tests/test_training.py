@@ -17,7 +17,7 @@ class TestTraining(unittest.TestCase):
 
     def test_torch_training(self):
         loader = pbdl_torch.Dataloader(
-            "transonic-cylinder-flow-tiny",
+            "transonic-cylinder-flow",
             time_steps=10,
             sel_sims=[0, 1],
             step_size=3,

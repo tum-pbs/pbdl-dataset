@@ -84,9 +84,10 @@ def dl_parts_from_huggingface(
             )  # is the same as sim_from if files contains only one sim
             for sim in range(sim_from, sim_to + 1):
                 sim_to_file[sim] = file
-
-    # expect numbering to be consecutive
-    # sims = range(len(sim_to_file))
+    
+    if not sel_sims:
+        # expect numbering to be consecutive
+        sel_sims = range(len(sim_to_file))
 
     modified = False
     with h5py.File(dest, "a") as f:
