@@ -22,7 +22,8 @@ class TestNormalization(unittest.TestCase):
 
     def test_std_norm(self):
         loader = Dataloader(
-            "transonic-cylinder-flow-tiny",
+            "transonic-cylinder-flow",
+            sel_sims=[0, 1],
             time_steps=10,
             normalize_data="std",
             normalize_const="std",
@@ -75,7 +76,8 @@ class TestNormalization(unittest.TestCase):
 
     def test_mean_std_norm(self):
         loader = Dataloader(
-            "transonic-cylinder-flow-tiny",
+            "transonic-cylinder-flow",
+            sel_sims=[0, 1],
             time_steps=1,
             normalize_data="mean-std",
             normalize_const="mean-std",
@@ -132,7 +134,8 @@ class TestNormalization(unittest.TestCase):
 
     def test_min_max_norm(self):
         loader = Dataloader(
-            "transonic-cylinder-flow-tiny",
+            "transonic-cylinder-flow",
+            sel_sims=[0, 1],
             time_steps=10,
             normalize_data="minus-one-to-one",
             normalize_const="minus-one-to-one",

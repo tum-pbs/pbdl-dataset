@@ -64,7 +64,7 @@ def dl_single_file_from_huggingface(dset: str, dest: str, config, prog_hook=None
 
 
 def dl_parts_from_huggingface(
-    dataset: str, dest: str, config, sims: list[int] = None, prog_hook=None
+    dataset: str, dest: str, config, sel_sims: list[int] = None, prog_hook=None
 ):
     """Adds partitions to hdf5 file. If parts is not specified, alls partitions are added."""
 
@@ -86,16 +86,16 @@ def dl_parts_from_huggingface(
                 sim_to_file[sim] = file
 
     # expect numbering to be consecutive
-    sims = range(len(sim_to_file))
+    # sims = range(len(sim_to_file))
 
     modified = False
     with h5py.File(dest, "a") as f:
-        for i, s in enumerate(sims):
+        for i, s in enumerate(sel_sims):
             if prog_hook:
                 prog_hook(
                     i,
                     1,
-                    len(sims),
+                    len(sel_sims),
                     message=f"downloading sim {s}",
                 )
 
