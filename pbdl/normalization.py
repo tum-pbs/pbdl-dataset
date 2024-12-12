@@ -170,14 +170,25 @@ class NormStrategy(ABC):
             self.const_std = self.const_std[indices]
             self.const_mea = self.const_mean[indices]
 
+
 class StdNorm(NormStrategy):
     """Normalizes fields/constants using only the standard deviation."""
 
-    def normalize(self, data, const=False):
-        return data / (self.const_std if const else self.fields_std)
+    def __init__(self, dset, sel_const, const=False):
 
-    def normalize_rev(self, data, const=False):
-        return data * (self.const_std if const else self.fields_std)
+        self.load_norm_data(dset, sel_const)
+        self.std = self.const_std if const else self.fields_std
+
+        if (self.std < 1e-10).any():
+            warn(
+                "Standard deviation used for normalization contains near-zero entries."
+            )
+
+    def normalize(self, data):
+        return data / self.std
+
+    def normalize_rev(self, data):
+        return data * self.std
 
         # if (const_std < 10e-10).any():
         #     const_norm = np.zeros_like(const)
@@ -188,35 +199,51 @@ class StdNorm(NormStrategy):
 class MeanStdNorm(NormStrategy):
     """Normalizes fields/constants using both mean and standard deviation. Ignores vector fields and treats them like scalar fields, thus does not use the field scheme."""
 
-    def normalize(self, data, const=False):
-        return (data - (self.const_mean if const else self.fields_sca_mean)) / (
-            self.const_std if const else self.fields_sca_std
-        )
+    def __init__(self, dset, sel_const, const=False):
+        self.load_norm_data(dset, sel_const)
+        self.mean = self.const_mean if const else self.fields_sca_mean
+        self.std = self.const_std if const else self.fields_sca_std
 
-    def normalize_rev(self, data, const=False):
-        return data * (self.const_std if const else self.fields_sca_std) + (
-            self.const_mean if const else self.fields_sca_mean
-        )
+        if (self.std < 1e-10).any():
+            warn(
+                "Standard deviation used for normalization contains near-zero entries."
+            )
+
+    def normalize(self, data):
+        return (data - self.mean) / self.std
+
+    def normalize_rev(self, data):
+        return data * self.std + self.mean
 
 
 class MinMaxNorm(NormStrategy):
     """Scales fields/constants to a min-max range."""
 
-    def __init__(self, min_val=0, max_val=1):
+    def __init__(self, dset, sel_const, const=False, min_val=0, max_val=1):
         self.min_val = min_val
         self.max_val = max_val
 
-    def normalize(self, data, const=False):
-        min = self.const_min if const else self.fields_sca_min
-        max = self.const_max if const else self.fields_sca_max
-        return (data - min) / (max - min) * (self.max_val - self.min_val) + self.min_val
+        self.load_norm_data(dset, sel_const)
+        self.min = self.const_min if const else self.fields_sca_min
+        self.max = self.const_max if const else self.fields_sca_max
 
-    def normalize_rev(self, data, const=False):
-        min = self.const_min if const else self.fields_sca_min
-        max = self.const_max if const else self.fields_sca_max
+        if min_val == max_val:
+            warn("Min and max specified for normalization must be different.")
+
+        if (self.max - self.min < 1e-10).any():
+            warn(
+                "Largest and smallest value found in data are too close for min-max normalization."
+            )
+
+    def normalize(self, data):
+        return (data - self.min) / (self.max - self.min) * (
+            self.max_val - self.min_val
+        ) + self.min_val
+
+    def normalize_rev(self, data):
         return ((data - self.min_val) / (self.max_val - self.min_val)) * (
-            max - min
-        ) + min
+            self.max - self.min
+        ) + self.min
 
 
 def clear_cache(dset):
@@ -233,7 +260,7 @@ STR_TO_NORM_STRAT = {
 }
 
 
-def get_norm_strat_from_str(str):
+def get_norm_strat_from_str(str, dset, sel_const, const=False):
     if str not in STR_TO_NORM_STRAT.keys():
         suggestions = ", ".join(STR_TO_NORM_STRAT.keys())
         fail(
@@ -242,4 +269,4 @@ def get_norm_strat_from_str(str):
         sys.exit(0)
 
     norm_class, args = STR_TO_NORM_STRAT.get(str)
-    return norm_class(**args)
+    return norm_class(dset, sel_const, const, **args)

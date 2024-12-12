@@ -64,8 +64,7 @@ class TestNormalization(unittest.TestCase):
         self.assertAlmostEqual(std_const, 1, places=2)
 
     def test_std_norm_rev(self):
-        norm = StdNorm()
-        norm.load_norm_data(self.rand_dset, sel_const=None)
+        norm = StdNorm(self.rand_dset, sel_const=None)
 
         arr = np.random.rand(4, 128, 64)
 
@@ -122,8 +121,7 @@ class TestNormalization(unittest.TestCase):
         self.assertAlmostEqual(const_std, 1, places=2)
 
     def test_mean_std_norm_rev(self):
-        norm = MeanStdNorm()
-        norm.load_norm_data(self.rand_dset, sel_const=None)
+        norm = MeanStdNorm(self.rand_dset, sel_const=None)
 
         arr = np.random.rand(4, 128, 64)
 
@@ -172,8 +170,7 @@ class TestNormalization(unittest.TestCase):
             self.assertAlmostEqual(max_val, 1, places=5)
 
     def test_min_max_norm_rev(self):
-        norm = MinMaxNorm(-1, 1)
-        norm.load_norm_data(self.rand_dset, sel_const=None)
+        norm = MinMaxNorm(self.rand_dset, sel_const=None, min_val=-1, max_val=1)
 
         arr = np.random.rand(4, 128, 64)
 

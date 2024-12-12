@@ -66,13 +66,6 @@ class Dataset:
         self.sel_const = sel_const
         self.disable_progress = disable_progress
 
-        self.norm_strat_data = (
-            norm.get_norm_strat_from_str(normalize_data) if normalize_data else None
-        )
-        self.norm_strat_const = (
-            norm.get_norm_strat_from_str(normalize_const) if normalize_const else None
-        )
-
         config.update(kwargs)
         _load_index()
 
@@ -151,8 +144,9 @@ class Dataset:
             norm.clear_cache(self.dset)
             self._change_file_mode("r")
 
+        # check if norm statistics are attached to dataset
         if (
-            self.norm_strat_data or self.norm_strat_data
+            normalize_data or normalize_const
         ) and not norm.NormStrategy.check_norm_data(self.dset):
             info(
                 "No precomputed normalization data found (or not complete). Calculating data..."
@@ -162,11 +156,16 @@ class Dataset:
             norm.NormStrategy.calculate_norm_data(self.dset)
             self._change_file_mode("r")
 
-        if self.norm_strat_data:
-            self.norm_strat_data.load_norm_data(self.dset, self.sel_const)
-
-        if self.norm_strat_const:
-            self.norm_strat_const.load_norm_data(self.dset, self.sel_const)
+        self.norm_strat_data = (
+            norm.get_norm_strat_from_str(normalize_data, self.dset, self.sel_const, const=False)
+            if normalize_data
+            else None
+        )
+        self.norm_strat_const = (
+            norm.get_norm_strat_from_str(normalize_const, self.dset, self.sel_const, const=True)
+            if normalize_const
+            else None
+        )
 
     def __load_dataset(self, dset_name, dset_file):
         """Load hdf5 dataset, setting attributes of the dataset instance, doing basic validation checks."""
@@ -264,7 +263,7 @@ class Dataset:
                 target = self.norm_strat_data.normalize(target)
 
         if self.norm_strat_const:
-            const = self.norm_strat_const.normalize(const, const=True)
+            const = self.norm_strat_const.normalize(const)
 
         return (
             input,
@@ -298,13 +297,13 @@ class Dataset:
         )
         info_str += f"{logging.BOLD}Dt:{logging.R_BOLD} {self.dt}\n"
         info_str += f"\n{logging.BOLD}Fields:{logging.R_BOLD}\n"
-        
+
         for i, field in enumerate(self.fields):
             if hasattr(self, "field_desc"):
                 info_str += f"   {field}:\t{self.field_desc[i]}\n"
             else:
                 info_str += f"   {field}:\n"
-        
+
         info_str += f"\n{logging.BOLD}Constants:{logging.R_BOLD}\n"
         for i, field in enumerate(self.fields):
             if hasattr(self, "const_desc"):
