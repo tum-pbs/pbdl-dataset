@@ -54,6 +54,7 @@ class Dataset:
         normalize_const=None,  # by default no normalization
         sel_sims=None,  # if None, all simulations are loaded
         sel_const=None,  # if None, all constants are returned
+        sel_channels=None, # if None, all channels are returned
         trim_start=None,  # by default 0
         trim_end=None,  # by default 0
         step_size=None,  # by default 1
@@ -166,6 +167,8 @@ class Dataset:
             if normalize_const
             else None
         )
+        
+        self.sel_channels = sel_channels
 
     def __load_dataset(self, dset_name, dset_file):
         """Load hdf5 dataset, setting attributes of the dataset instance, doing basic validation checks."""
@@ -242,12 +245,12 @@ class Dataset:
         )
         target_frame_idx = input_frame_idx + self.time_steps
 
-        input = sim[input_frame_idx]
+        input = sim[input_frame_idx] if self.sel_channels is None else sim[input_frame_idx,self.sel_channels]
 
         if self.intermediate_time_steps:
-            target = sim[input_frame_idx + 1 : target_frame_idx + 1]
+            target = sim[input_frame_idx + 1 : target_frame_idx + 1] if self.sel_channels is None else sim[input_frame_idx + 1 : target_frame_idx + 1, self.sel_channels]
         else:
-            target = sim[target_frame_idx]
+            target = sim[target_frame_idx] if self.sel_channels is None else sim[target_frame_idx, self.sel_channels]
 
         const_nnorm = const
 
