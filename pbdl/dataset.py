@@ -245,12 +245,12 @@ class Dataset:
         )
         target_frame_idx = input_frame_idx + self.time_steps
 
-        input = sim[input_frame_idx] if self.sel_channels is None else sim[input_frame_idx,self.sel_channels]
+        input = sim[input_frame_idx]
 
         if self.intermediate_time_steps:
-            target = sim[input_frame_idx + 1 : target_frame_idx + 1] if self.sel_channels is None else sim[input_frame_idx + 1 : target_frame_idx + 1, self.sel_channels]
+            target = sim[input_frame_idx + 1 : target_frame_idx + 1]
         else:
-            target = sim[target_frame_idx] if self.sel_channels is None else sim[target_frame_idx, self.sel_channels]
+            target = sim[target_frame_idx]
 
         const_nnorm = const
 
@@ -267,6 +267,13 @@ class Dataset:
 
         if self.norm_strat_const:
             const = self.norm_strat_const.normalize(const)
+            
+        if self.sel_channels is not None:
+            input = input[self.sel_channels]
+            if self.intermediate_time_steps:
+                target = target[:,self.sel_channels]
+            else:
+                target = target[self.sel_channels]
 
         return (
             input,
