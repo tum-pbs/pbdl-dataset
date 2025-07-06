@@ -1,5 +1,5 @@
 # Installation
-With this command, you can install the package directly from GitHub:
+With this command, you can install the package:
 ```
 pip install pbdl
 ```
