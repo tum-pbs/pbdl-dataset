@@ -1,12 +1,12 @@
 # Installation
 With this command, you can install the package directly from GitHub:
 ```
-pip install git+https://github.com/tum-pbs/pbdl-dataset
+pip install pbdl
 ```
 
 Update the package with this command:
 ```
-pip install --upgrade git+https://github.com/tum-pbs/pbdl-dataset
+pip install --upgrade pbdl
 ```
 
 You can also install the *unstable* development version:
