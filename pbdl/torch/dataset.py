@@ -1,1 +1,1 @@
-from pbdl.dataset import Dataset
+from pbdl.dataset import Dataset, Dataset3D

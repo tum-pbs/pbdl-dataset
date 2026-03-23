@@ -2,6 +2,9 @@ import os
 import h5py
 import numpy as np
 from itertools import groupby
+
+from h5py import Group
+
 from pbdl.logging import info, success, warn, fail, corrupt
 
 META_ATTRS_REQUIRED = {
@@ -18,11 +21,18 @@ def get_sel_const_sim(dset, sim, sel_const):
     const = sel_const if sel_const else dset["sims/"].attrs["Constants"]
     return [attrs[key] for key in const]
 
+def get_sel_const_sim_v2(dset, sim, sel_const):
+    attrs = dset[f"sims/sim{sim}/0"].attrs
+    const = sel_const if sel_const else dset["sims/"].attrs["Constants"]
+    return [attrs[key] for key in const]
 
 def get_const_sim(dset, sim):
     attrs = dset["sims/sim" + str(sim)].attrs
     return [attrs[key] for key in dset["sims/"].attrs["Constants"]]
 
+def get_const_sim_v2(dset, sim):
+    attrs = dset[f"sims/sim{sim}/0"].attrs
+    return [attrs[key] for key in dset["sims/"].attrs["Constants"]]
 
 def get_meta_data(dset):
     # convert_key = lambda key: key.lower().replace(" ", "_")
@@ -41,11 +51,17 @@ def get_meta_data(dset):
 
     meta = {field_mapping[field]: meta_attrs[field] for field in field_mapping.keys() if field in meta_attrs}
 
-    # retrieve remaining metadata from the first simulation
-    first_sim = dset["sims"][next(iter(dset["sims"]))]
-    sim_shape = first_sim.shape
+    group = dset["sims"][f'{next(iter(dset["sims"]))}']
+    if isinstance(group, Group):
+        first_sim = dset["sims"][f'{next(iter(dset["sims"]))}/0']
+        sim_shape = first_sim.shape
+        num_spatial_dim = len(sim_shape) - 1
+    else:
+        first_sim = group
+        sim_shape = first_sim.shape
+        num_spatial_dim = len(sim_shape) - 2 # subtract 2 for frame and field dimension
+
     num_fields = len(list(groupby(meta["fields_scheme"])))  # TODO
-    num_spatial_dim = len(sim_shape) - 2  # subtract 2 for frame and field dimension
 
     meta.update(
         {
