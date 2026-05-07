@@ -308,16 +308,16 @@ class Dataset:
 
             if self.crop_size is None:
 
-                target = sim[input_frame_idx]
+                target = sim[target_frame_idx]
 
             else:
 
                 if len(dim_list) == 2:
-                    target = sim[input_frame_idx, :, crop_dim_list[0]:crop_dim_list[0]+self.crop_size,
+                    target = sim[target_frame_idx, :, crop_dim_list[0]:crop_dim_list[0]+self.crop_size,
                                                                                crop_dim_list[1]:crop_dim_list[1]+self.crop_size]
 
                 elif len(dim_list) == 3:
-                    target = sim[input_frame_idx, :, crop_dim_list[0]:crop_dim_list[0]+self.crop_size,
+                    target = sim[target_frame_idx, :, crop_dim_list[0]:crop_dim_list[0]+self.crop_size,
                                                                                crop_dim_list[1]:crop_dim_list[1]+self.crop_size,
                                                                                crop_dim_list[2]:crop_dim_list[2]+self.crop_size]
 
